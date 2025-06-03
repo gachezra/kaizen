@@ -31,3 +31,12 @@ export interface BlogPost {
   createdAt?: Timestamp;
   lastEditedAt?: Timestamp;
 }
+
+export interface UserDocument {
+  id?: string;
+  email: string; // Used as username
+  password?: string; // Plain text password as per request
+  name?: string;
+  role?: string;
+  // other fields as necessary
+}

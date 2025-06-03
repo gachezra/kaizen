@@ -1,9 +1,11 @@
+
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+// import { signInWithEmailAndPassword } from 'firebase/auth'; // Firebase Auth import removed/commented
+// import { auth } from '@/lib/firebase/config'; // Firebase Auth import removed/commented
+import { verifyUserCredentials } from '@/lib/firebase/firestore'; // Import new verification function
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,14 +25,27 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({ title: "Login Successful", description: "Redirecting to dashboard..." });
-      router.push('/admin/dashboard');
+      // Old Firebase Auth login (already commented in provided code)
+      // await signInWithEmailAndPassword(auth, email, password);
+
+      // New login logic using Firestore
+      const userDoc = await verifyUserCredentials(email, password);
+
+      if (userDoc) {
+        toast({ 
+          title: "Login Successful", 
+          description: `Welcome, ${userDoc.name || userDoc.email}! Redirecting to dashboard...` 
+        });
+        router.push('/admin/dashboard');
+      } else {
+        // This error will be caught by the catch block below
+        throw new Error("Invalid email or password. Please try again.");
+      }
     } catch (error: any) {
       console.error("Login failed:", error);
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please try again.",
+        description: error.message || "An unexpected error occurred.",
         variant: "destructive",
       });
     } finally {
