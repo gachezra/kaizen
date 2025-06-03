@@ -2,43 +2,40 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-// import { signInWithEmailAndPassword } from 'firebase/auth'; // Firebase Auth import removed/commented
-// import { auth } from '@/lib/firebase/config'; // Firebase Auth import removed/commented
-import { verifyUserCredentials } from '@/lib/firebase/firestore'; // Import new verification function
+// import { useRouter } from 'next/navigation'; // useRouter no longer needed here for redirect
+import { verifyUserCredentials } from '@/lib/firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  // const router = useRouter(); // No longer needed for redirect
   const { toast } = useToast();
+  const { loginCustomUser } = useAuth(); // Get loginCustomUser from AuthContext
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Old Firebase Auth login (already commented in provided code)
-      // await signInWithEmailAndPassword(auth, email, password);
-
-      // New login logic using Firestore
       const userDoc = await verifyUserCredentials(email, password);
 
       if (userDoc) {
-        toast({ 
-          title: "Login Successful", 
-          description: `Welcome, ${userDoc.name || userDoc.email}! Redirecting to dashboard...` 
+        loginCustomUser(userDoc); // Set user in AuthContext
+        toast({
+          title: "Login Successful",
+          description: `Welcome, ${userDoc.name || userDoc.email}! Redirecting to dashboard...`
         });
-        router.push('/admin/dashboard');
+        // Redirection is now handled by AuthContext's useEffect
+        // router.push('/admin/dashboard'); 
       } else {
-        // This error will be caught by the catch block below
         throw new Error("Invalid email or password. Please try again.");
       }
     } catch (error: any) {
@@ -66,11 +63,11 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Username</Label>
               <Input
                 id="email"
-                type="email"
-                placeholder="admin@example.com"
+                type="text"
+                placeholder="admin"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

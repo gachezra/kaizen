@@ -99,7 +99,7 @@ const usersCollectionRef = collection(db, 'users');
 
 export const verifyUserCredentials = async (email: string, passwordProvided: string): Promise<UserDocument | null> => {
   // Query for the user by email first
-  const q = query(usersCollectionRef, where('email', '==', email));
+  const q = query(usersCollectionRef, where('username', '==', email));
   const querySnapshot = await getDocs(q);
 
   if (querySnapshot.empty) {

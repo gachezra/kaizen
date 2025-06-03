@@ -1,10 +1,11 @@
+
 "use client";
 
 import React, { ReactNode, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase/config';
+// import { signOut } from 'firebase/auth'; // signOut is now handled within useAuth().logout
+// import { auth } from '@/lib/firebase/config'; // auth is used within AuthContext
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +24,8 @@ import { LayoutDashboard, Image as ImageIcon, FileText, LogOut, UserCircle, Pane
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from '@/hooks/use-toast';
+import type { User as FirebaseUser } from 'firebase/auth';
+import type { UserDocument } from '@/types';
 
 interface NavItem {
   href: string;
@@ -37,38 +40,49 @@ const navItems: NavItem[] = [
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user: effectiveUser, isAuthenticated, loading, logout } = useAuth(); // useAuth now provides effectiveUser and isAuthenticated
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Redirection logic is primarily handled by AuthContext now.
+    // This effect can be simplified or removed if AuthContext covers all cases.
+    if (!loading && !isAuthenticated && pathname !== '/login') {
       router.push('/login');
     }
-  }, [user, loading, router]);
+  }, [isAuthenticated, loading, router, pathname]);
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await logout(); // Call logout from AuthContext
       toast({ title: "Logged Out", description: "You have been successfully logged out." });
-      router.push('/login');
+      // router.push('/login'); // logout() in AuthContext handles redirection
     } catch (error) {
       console.error("Logout failed:", error);
       toast({ title: "Logout Failed", description: "Could not log out. Please try again.", variant: "destructive" });
     }
   };
-
-  if (loading || !user) {
-    // AuthProvider already shows a full-page loader, so this can be minimal or null
-    // Or, ensure AuthProvider logic correctly handles this to avoid double loading screens.
-    return null; 
-  }
   
-  const getInitials = (email?: string | null) => {
-    if (!email) return "U";
-    return email.substring(0, 2).toUpperCase();
+  // AuthProvider handles its own loading screen.
+  // This check ensures we don't render admin layout if auth state is still resolving or user is not authenticated.
+  if (loading || !isAuthenticated) {
+     // If still loading or not authenticated, and not on login page, AuthContext should redirect.
+     // If on login page, AuthContext will allow login page to render.
+     // Returning null here avoids rendering admin layout prematurely.
+    return null;
   }
+
+  const getInitials = (email?: string | null, name?: string | null) => {
+    if (name) return name.substring(0, 2).toUpperCase();
+    if (email) return email.substring(0, 2).toUpperCase();
+    return "U";
+  }
+
+  const userEmail = effectiveUser?.email || "";
+  const userName = (effectiveUser as FirebaseUser)?.displayName || (effectiveUser as UserDocument)?.name || "";
+  const userPhotoURL = (effectiveUser as FirebaseUser)?.photoURL || undefined;
+
 
   return (
     <SidebarProvider defaultOpen>
@@ -116,17 +130,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} data-ai-hint="user avatar" />
-                  <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+                  <AvatarImage src={userPhotoURL} alt={userName || userEmail || 'User'} data-ai-hint="user avatar" />
+                  <AvatarFallback>{getInitials(userEmail, userName)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+              <DropdownMenuLabel>{userName || userEmail}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {/* <DropdownMenuItem>Settings</DropdownMenuItem> */}
-              {/* <DropdownMenuItem>Support</DropdownMenuItem> */}
-              {/* <DropdownMenuSeparator /> */}
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
                 Logout
@@ -141,3 +152,4 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </SidebarProvider>
   );
 }
+
