@@ -31,7 +31,7 @@ export default function LoginPage() {
         loginCustomUser(userDoc); // Set user in AuthContext
         toast({
           title: "Login Successful",
-          description: `Welcome, ${userDoc.name || userDoc.email}! Redirecting to dashboard...`
+          description: `Welcome, ${email || userDoc.email}! Redirecting to dashboard...`
         });
         // Redirection is now handled by AuthContext's useEffect
         // router.push('/admin/dashboard'); 
