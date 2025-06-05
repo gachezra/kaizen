@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, ChangeEvent } from 'react';
@@ -53,30 +54,39 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     }
 
     setIsUploading(true);
-    const newImages: UploadedImage[] = [...uploadedImages];
-    let currentOrder = newImages.length > 0 ? Math.max(...newImages.map(img => img.order)) + 1 : 0;
+    // newImagesList will accumulate the current images plus the new ones being processed
+    const newImagesList: UploadedImage[] = [...uploadedImages];
+    let currentOrder = newImagesList.length > 0 ? Math.max(...newImagesList.map(img => img.order)) + 1 : 0;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const tempId = `uploading-${Date.now()}-${i}`;
+      // Use a more unique tempId in case of rapid succession, though Date.now()-i is often sufficient
+      const tempId = `uploading-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 7)}`;
 
       if (file.size > maxFileSizeMB * 1024 * 1024) {
         toast({ title: "File Too Large", description: `${file.name} exceeds the ${maxFileSizeMB}MB size limit.`, variant: "destructive" });
         continue;
       }
       
-      // Add to list for preview with progress
-      newImages.push({ secure_url: URL.createObjectURL(file), public_id: tempId, file, order: currentOrder, id: tempId });
-      setUploadedImages([...newImages]); // Update UI to show placeholder
+      // Add placeholder to newImagesList for UI preview
+      const placeholderImage: UploadedImage = { 
+        secure_url: URL.createObjectURL(file), 
+        public_id: tempId, 
+        file, 
+        order: currentOrder, 
+        id: tempId 
+      };
+      newImagesList.push(placeholderImage);
+      // Update UI immediately with the placeholder
+      setUploadedImages([...newImagesList].sort((a, b) => a.order - b.order)); 
       currentOrder++;
 
       try {
-        // Simulate progress for demo, Cloudinary SDK might offer progress events
         setUploadProgress(prev => ({ ...prev, [tempId]: 0 }));
         let progress = 0;
         const interval = setInterval(() => {
           progress += 10;
-          if (progress <= 90) { // Stop at 90 to wait for actual upload
+          if (progress <= 90) {
             setUploadProgress(prev => ({ ...prev, [tempId]: progress }));
           } else {
             clearInterval(interval);
@@ -84,12 +94,17 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
         }, 100);
 
         const result = await uploadToCloudinary(file);
-        clearInterval(interval); // Clear simulated progress
+        clearInterval(interval);
 
         if (result) {
-          const uploadedImageIndex = newImages.findIndex(img => img.id === tempId);
+          const uploadedImageIndex = newImagesList.findIndex(img => img.id === tempId);
           if (uploadedImageIndex !== -1) {
-            newImages[uploadedImageIndex] = { ...result, order: newImages[uploadedImageIndex].order, id: result.public_id };
+            // Replace placeholder with actual data
+            newImagesList[uploadedImageIndex] = { 
+              ...result, 
+              order: newImagesList[uploadedImageIndex].order, // Retain original order
+              id: result.public_id // Update id to the actual public_id
+            };
           }
           setUploadProgress(prev => ({ ...prev, [tempId]: 100 }));
           toast({ title: "Upload Successful", description: `${file.name} uploaded.` });
@@ -97,8 +112,11 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           throw new Error("Upload failed, result is null");
         }
       } catch (error: any) {
-        const failedImageIndex = newImages.findIndex(img => img.id === tempId);
-        if (failedImageIndex !== -1) newImages.splice(failedImageIndex, 1); // Remove failed upload
+        // Remove placeholder if upload failed
+        const failedImageIndex = newImagesList.findIndex(img => img.id === tempId);
+        if (failedImageIndex !== -1) {
+          newImagesList.splice(failedImageIndex, 1); 
+        }
         
         toast({ title: "Upload Failed", description: `Error uploading ${file.name}: ${error.message}`, variant: "destructive" });
         setUploadProgress(prev => {
@@ -107,15 +125,16 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
           return newState;
         });
       }
-    }
+    } // End of for-loop for files
     
-    // Filter out any temporary placeholders if upload failed before result
-    const finalImages = newImages.filter(img => img.id !== img.public_id || img.public_id.startsWith("existing-"));
+    // After processing all files, newImagesList contains the correct set of images.
+    // No need for the problematic filter.
+    const finalSortedImages = newImagesList.sort((a,b) => a.order - b.order);
+    setUploadedImages(finalSortedImages);
+    onImagesChange(finalSortedImages);
     
-    setUploadedImages(finalImages.sort((a,b) => a.order - b.order));
-    onImagesChange(finalImages.sort((a,b) => a.order - b.order));
     setIsUploading(false);
-     // Reset file input to allow re-uploading the same file if needed
+    // Reset file input to allow re-uploading the same file if needed
     if (event.target) {
       event.target.value = "";
     }
@@ -125,12 +144,13 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
     const imageToRemove = uploadedImages.find(img => img.public_id === publicIdToRemove);
     if (!imageToRemove) return;
 
-    if (onImageDelete && !publicIdToRemove.startsWith("uploading-")) { // Only delete from Cloudinary if it's an actual public_id
+    // Only delete from Cloudinary if it's an actual public_id (not a temporary "uploading-" id)
+    if (onImageDelete && !publicIdToRemove.startsWith("uploading-")) { 
       try {
         const result = await onImageDelete(publicIdToRemove);
         if (!result.success) {
           toast({ title: "Deletion Failed on Cloudinary", description: result.error || "Could not delete image from Cloudinary.", variant: "destructive" });
-          return; // Don't remove from UI if server deletion fails
+          return; 
         }
          toast({ title: "Image Deleted", description: "Image removed from Cloudinary." });
       } catch (error: any) {
@@ -237,7 +257,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-                {/* <span className="text-xs text-white bg-black/50 px-1 rounded">Order: {image.order + 1}</span> */}
               </div>
               {uploadProgress[image.id] !== undefined && uploadProgress[image.id] < 100 && (
                 <div className="absolute bottom-0 left-0 right-0 p-1">
@@ -254,3 +273,4 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 
 export default ImageUploader;
 
+    
