@@ -54,23 +54,21 @@ export default function DashboardPage() {
         Welcome to the Kaizen Control Center. Here's a quick overview of your content.
       </p>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
         <StatCard title="Total Gallery Events" value={galleryCount} icon={ImageIcon} description="Published and draft events" />
         <StatCard title="Total Blog Posts" value={blogCount} icon={FileText} description="Published and draft posts" />
-        <StatCard title="Users" value="1" icon={Users} description="Admin users" />
-        <StatCard title="Site Activity" value="N/A" icon={BarChart} description="Feature coming soon" />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-lg">
+      <div className="mx-auto">
+        {/* <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">No recent activity to display yet.</p>
-            {/* Placeholder for recent activity feed */}
+            
           </CardContent>
-        </Card>
+        </Card> */}
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="font-headline">Quick Links</CardTitle>
