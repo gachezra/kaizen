@@ -20,7 +20,7 @@ const serializeBlogPost = (post: BlogPost): any => {
   };
 };
 
-const allowedOrigin = 'https://kaizenmartialartskenya.org';
+const allowedOrigin = 'https://www.kaizenmartialartskenya.org';
 
 export async function GET(request: Request) {
   // Preflight OPTIONS request handling
